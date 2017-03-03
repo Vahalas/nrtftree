@@ -130,17 +130,40 @@ namespace Net.Sgoliver.NRtfTree
             /// <summary>
             /// Inserta un fragmento de texto en el documento con un formato de texto determinado.
             /// </summary>
+            /// <param name="parent">Nodo padre del fragmento de texto</param>
             /// <param name="text">Texto a insertar.</param>
             /// <param name="format">Formato del texto a insertar.</param>
             /// <param name="highlight">Resaltar el texto?</param>
-            public void AddText(string text, RtfCharFormat format, bool highlight = false)
+            public void AddText(RtfTreeNode parent, string text, RtfCharFormat format, bool highlight = false)
             {
                 UpdateFontTable(format);
                 UpdateColorTable(format);
 
                 UpdateCharFormat(format);
 
-                InsertText(text, highlight);
+                InsertText(parent, text, highlight);
+            }
+
+            /// <summary>
+            /// Inserta un fragmento de texto en el documento con un formato de texto determinado.
+            /// </summary>
+            /// <param name="text">Texto a insertar.</param>
+            /// <param name="format">Formato del texto a insertar.</param>
+            /// <param name="highlight">Resaltar el texto?</param>
+            public void AddText(string text, RtfCharFormat format, bool highlight = false)
+            {
+                AddText(this.mainGroup, text, format, highlight);
+            }
+
+            /// <summary>
+            /// Inserta un fragmento de texto en el documento con el formato de texto actual.
+            /// </summary>
+            /// <param name="parent">Nodo padre del fragmento de texto</param>
+            /// <param name="text">Texto a insertar.</param>
+            /// <param name="highlight">Resaltar el texto?</param>
+            public void AddText(RtfTreeNode parent, string text, bool highlight = false)
+            {
+                InsertText(parent, text, highlight);
             }
 
             /// <summary>
@@ -150,7 +173,7 @@ namespace Net.Sgoliver.NRtfTree
             /// <param name="highlight">Resaltar el texto?</param>
             public void AddText(string text, bool highlight = false)
             {
-                InsertText(text, highlight);
+                InsertText(this.mainGroup, text, highlight);
             }
 
             /// <summary>
@@ -256,6 +279,45 @@ namespace Net.Sgoliver.NRtfTree
                     if (br != null) br.Close();
                     if (fStream != null) fStream.Close();
                 }
+            }
+
+            /// <summary>
+            /// Inserta un campo en el documento
+            /// </summary>
+            /// <param name="instruction">El codigo de campo</param>
+            /// <param name="initial_result">El valor del campo inicial</param>
+            public void AddField(string instruction, string initial_result)
+            {
+                AddField(this.mainGroup, instruction, initial_result);
+            }
+
+            /// <summary>
+            /// Inserta un campo en el documento
+            /// </summary>
+            /// <param name="parent">Nodo padre del campo</param>
+            /// <param name="instruction">El codigo de campo</param>
+            /// <param name="initial_result">El valor del campo inicial</param>
+            public void AddField(RtfTreeNode parent, string instruction, string initial_result)
+            {
+                var fieldInstructionGroup = new RtfTreeNode(RtfNodeType.Group);
+                fieldInstructionGroup.AppendChild(new RtfTreeNode(RtfNodeType.Keyword, "*", false, 0));
+                fieldInstructionGroup.AppendChild(new RtfTreeNode(RtfNodeType.Keyword, "fldinst", false, 0));
+                var fieldInstructionTextGroup = new RtfTreeNode(RtfNodeType.Group);
+                this.InsertText(fieldInstructionTextGroup, instruction);
+                fieldInstructionGroup.AppendChild(fieldInstructionTextGroup);
+
+                var fieldResultGroup = new RtfTreeNode(RtfNodeType.Group);
+                fieldResultGroup.AppendChild(new RtfTreeNode(RtfNodeType.Keyword, "fldrslt", false, 0));
+                var fieldResultTextGroup = new RtfTreeNode(RtfNodeType.Group);
+                this.InsertText(fieldResultTextGroup, initial_result);
+                fieldResultGroup.AppendChild(fieldResultTextGroup);
+
+                var fieldGroup = new RtfTreeNode(RtfNodeType.Group);
+                fieldGroup.AppendChild(new RtfTreeNode(RtfNodeType.Keyword, "field", false, 0));
+                fieldGroup.AppendChild(fieldInstructionGroup);
+                fieldGroup.AppendChild(fieldResultGroup);
+
+                (parent ?? this.mainGroup).AppendChild(fieldGroup);
             }
 
             /// <summary>
@@ -515,6 +577,39 @@ namespace Net.Sgoliver.NRtfTree
                 }
             }
 
+            /// <summary>
+            /// Añadir o reemplazar el pie de página del documento
+            /// </summary>
+            /// <param name="footer">pie de página</param>
+            public void SetFooter(RtfTreeNode footer)
+            {
+                RtfTreeNode footerGroup = null;
+
+                // Find any existing footer
+                int footerIndex = this.mainGroup.ChildNodes.IndexOf("footer");
+                if (footerIndex != -1)
+                {
+                    // delete all child nodes of existing footer
+                    footerGroup = this.mainGroup.ChildNodes[footerIndex].ParentNode;
+                    footerGroup.ChildNodes.Clear();
+                }
+                else
+                {
+                    // Insert a new footer group just before the body text
+                    int indInicioTexto = this.mainGroup.ChildNodes.IndexOf("pard");
+
+                    footerGroup = new RtfTreeNode(RtfNodeType.Group);
+                    this.mainGroup.InsertChild(indInicioTexto, footerGroup);
+                }
+
+                footerGroup.AppendChild(new RtfTreeNode(RtfNodeType.Keyword, "footer", false, 0));
+
+                if (footer != null)
+                {
+                    footerGroup.AppendChild(footer);
+                }
+            }
+
             #endregion
 
             #region Propiedades
@@ -651,14 +746,15 @@ namespace Net.Sgoliver.NRtfTree
             /// <summary>
             /// Inserta todos los nodos de texto y control necesarios para representar un texto determinado.
             /// </summary>
+            /// <param name="parent">Nodo padre del fragmento de texto</param>
             /// <param name="text">Texto a insertar.</param>
             /// <param name="highlight">Resaltar el texto?</param>
-            private void InsertText(string text, bool highlight = false)
+            private void InsertText(RtfTreeNode parent, string text, bool highlight = false)
             {
                 int i = 0;
                 int code = 0;
 
-                RtfTreeNode textGroup = mainGroup;
+                RtfTreeNode textGroup = parent ?? this.mainGroup;
 
                 if (highlight && text.Length > 0)
                 {
@@ -725,7 +821,7 @@ namespace Net.Sgoliver.NRtfTree
 
                 if (highlight && text.Length > 0)
                 {
-                    mainGroup.AppendChild(textGroup);
+                    (parent ?? this.mainGroup).AppendChild(textGroup);
                 }
             }
 
