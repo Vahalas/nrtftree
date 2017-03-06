@@ -800,6 +800,10 @@ namespace Net.Sgoliver.NRtfTree
                         {
                             textGroup.AppendChild(new RtfTreeNode(RtfNodeType.Keyword, "line", false, 0));
                         }
+                        else if (text[i] == '\r' && text.Substring(i, 2) == System.Environment.NewLine)
+                        {
+                            // Ignore carriage-return characters that make up a newline
+                        }
                         else
                         {
                             if (code <= 255)
