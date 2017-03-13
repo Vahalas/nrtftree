@@ -578,6 +578,39 @@ namespace Net.Sgoliver.NRtfTree
             }
 
             /// <summary>
+            /// Añadir o reemplazar el cabecera del documento
+            /// </summary>
+            /// <param name="header">cabecera</param>
+            public void SetHeader(RtfTreeNode header)
+            {
+                RtfTreeNode headerGroup = null;
+
+                // Find any existing header
+                RtfTreeNode existingHeader = this.mainGroup.SelectSingleNode("header");
+                if (existingHeader != null)
+                {
+                    // delete all child nodes of existing header
+                    headerGroup = existingHeader.ParentNode;
+                    headerGroup.ChildNodes.Clear();
+                }
+                else
+                {
+                    // Insert a new header group just before the body text
+                    int indInicioTexto = this.mainGroup.ChildNodes.IndexOf("pard");
+
+                    headerGroup = new RtfTreeNode(RtfNodeType.Group);
+                    this.mainGroup.InsertChild(indInicioTexto, headerGroup);
+                }
+
+                headerGroup.AppendChild(new RtfTreeNode(RtfNodeType.Keyword, "header", false, 0));
+
+                if (header != null)
+                {
+                    headerGroup.AppendChild(header);
+                }
+            }
+
+            /// <summary>
             /// Añadir o reemplazar el pie de página del documento
             /// </summary>
             /// <param name="footer">pie de página</param>
@@ -586,11 +619,11 @@ namespace Net.Sgoliver.NRtfTree
                 RtfTreeNode footerGroup = null;
 
                 // Find any existing footer
-                int footerIndex = this.mainGroup.ChildNodes.IndexOf("footer");
-                if (footerIndex != -1)
+                RtfTreeNode existingFooter = this.mainGroup.SelectSingleNode("footer");
+                if (existingFooter != null)
                 {
                     // delete all child nodes of existing footer
-                    footerGroup = this.mainGroup.ChildNodes[footerIndex].ParentNode;
+                    footerGroup = existingFooter.ParentNode;
                     footerGroup.ChildNodes.Clear();
                 }
                 else
